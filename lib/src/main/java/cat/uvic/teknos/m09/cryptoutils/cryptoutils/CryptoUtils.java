@@ -1,14 +1,11 @@
 package cat.uvic.teknos.m09.cryptoutils.cryptoutils;
 
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
+import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.Properties;
@@ -65,7 +62,7 @@ public class CryptoUtils {
 
         return salt;
     }
-    public static byte[] encrypt(byte[] plainText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public static byte[] encrypt(byte[] plainText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         var properties = new Properties();
         properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
 
@@ -73,13 +70,30 @@ public class CryptoUtils {
         PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), getSalt(), Integer.parseInt(properties.getProperty("hash.iterations")), 256);
         SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
 
-        var scretKeyEncoded =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
+        var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
 
+        var cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
 
-        return null;
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+
+        return cipher.doFinal(plainText);
     }
+    public static byte[] decrypt(byte[] cipherText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        var properties = new Properties();
+        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
 
+        var iv = new IvParameterSpec(properties.getProperty("hash.iv").getBytes());
+        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), getSalt(), Integer.parseInt(properties.getProperty("hash.iterations")), 256);
+        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
 
+        var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
+
+        var cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
+
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
+
+        return cipher.doFinal(cipherText);
+    }
 
     public static void main(String[] args) {
         byte[] myvar = "Any String you want".getBytes();
@@ -90,5 +104,7 @@ public class CryptoUtils {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+
+
     }
 }

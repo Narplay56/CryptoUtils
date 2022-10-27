@@ -5,10 +5,10 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -17,7 +17,7 @@ import java.util.Base64;
 import java.util.Properties;
 
 public class CryptoUtils {
-
+    private static byte[] hashSalt;
 
     public static String getHash(byte[] message) throws IOException, NoSuchAlgorithmException {
         var fnmessage = "";
@@ -71,8 +71,12 @@ public class CryptoUtils {
         var properties = new Properties();
         properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
 
-        var iv = new IvParameterSpec(properties.getProperty("hash.iv").getBytes());
-        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), getSalt(), Integer.parseInt(properties.getProperty("hash.iterations")), 256);
+        hashSalt = getSalt();
+        var iv = new IvParameterSpec(hashSalt);
+
+//        properties.setProperty("has.salt2", base64Encoder.encodeToString(salt));
+
+        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), hashSalt, Integer.parseInt(properties.getProperty("hash.iterations")), 256);
         SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
 
         var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
@@ -86,9 +90,9 @@ public class CryptoUtils {
     public static byte[] decrypt(byte[] cipherText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         var properties = new Properties();
         properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
-
-        var iv = new IvParameterSpec(properties.getProperty("hash.iv").getBytes());
-        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), getSalt(), Integer.parseInt(properties.getProperty("hash.iterations")), 256);
+        var base64Encoder = Base64.getEncoder();
+        var iv = new IvParameterSpec(hashSalt);
+        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(),hashSalt, Integer.parseInt(properties.getProperty("hash.iterations")), 256);
         SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
 
         var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
@@ -102,8 +106,6 @@ public class CryptoUtils {
     public static byte[] sign (byte[] message) throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException, UnrecoverableKeyException {
         var properties = new Properties();
         properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
-
-        message = Files.readAllBytes(Paths.get("lib/src/main/resources/message.txt"));
         var keystore = KeyStore.getInstance("PKCS12");
         keystore.load(new FileInputStream(properties.getProperty("keystore.name")),
                 properties.getProperty("keystore.password").toCharArray());
@@ -139,7 +141,8 @@ public class CryptoUtils {
         return signer.verify(signature);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, BadPaddingException, InvalidKeyException {
+
         byte[] myvar = "Any String you want".getBytes();
         try {
             System.out.println(getHash(myvar));
@@ -148,6 +151,7 @@ public class CryptoUtils {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+        encrypt(myvar,"1234");
 
 
     }

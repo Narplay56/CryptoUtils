@@ -4,8 +4,14 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.Properties;
@@ -26,7 +32,6 @@ public class CryptoUtils {
         if (salt) {
             var salt1 = getSalt();
             fnmessage = getDigest(message, salt1, hashAlgorithm);
-
 
         } else {
             fnmessage = getDigestNoSalt(message, hashAlgorithm);
@@ -94,7 +99,46 @@ public class CryptoUtils {
 
         return cipher.doFinal(cipherText);
     }
-git
+    public static byte[] sign (byte[] message) throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException, UnrecoverableKeyException {
+        var properties = new Properties();
+        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+
+        message = Files.readAllBytes(Paths.get("lib/src/main/resources/message.txt"));
+        var keystore = KeyStore.getInstance("PKCS12");
+        keystore.load(new FileInputStream(properties.getProperty("keystore.name")),
+                properties.getProperty("keystore.password").toCharArray());
+        var privateKey = keystore.getKey(properties.getProperty("keystore.alias"),
+                properties.getProperty("keystore.password").toCharArray());
+
+        var signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
+        signer.initSign((PrivateKey) privateKey);
+        signer.update(message);
+
+        return signer.sign();
+
+    }
+
+    public static boolean verify (byte[]  message, byte[] signature, byte[] certificate) throws CertificateException, NoSuchAlgorithmException, IOException, SignatureException, InvalidKeyException {
+        var properties = new Properties();
+        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+
+        var signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
+
+        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+        InputStream in = new ByteArrayInputStream(certificate);
+        X509Certificate cert = (X509Certificate)certFactory.generateCertificate(in);
+        try {
+            cert.checkValidity();
+        } catch( Exception e) {
+            System.out.println(e.getMessage());
+        }
+        var publicKey = cert.getPublicKey();
+        signer.initVerify(publicKey);
+        signer.update(message);
+
+        return signer.verify(signature);
+    }
+
     public static void main(String[] args) {
         byte[] myvar = "Any String you want".getBytes();
         try {

@@ -1,5 +1,7 @@
 package cat.uvic.teknos.m09.cryptoutils.cryptoutils;
 
+import cat.uvic.teknos.m09.cryptoutils.cryptoutils.exceptions.CryptoUtilsExceptions;
+
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
@@ -19,11 +21,20 @@ import java.util.Properties;
 public class CryptoUtils {
     private static byte[] hashSalt;
 
-    public static String getHash(byte[] message) throws IOException, NoSuchAlgorithmException {
+    /**
+     *
+     * @param message
+     * @return
+     */
+    public static String getHash(byte[] message) {
         var fnmessage = "";
         var properties = new Properties();
 
-        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        try {
+            properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        } catch (IOException e) {
+            throw new CryptoUtilsExceptions("No resource found",e);
+        }
 
         var hashAlgorithm = properties.getProperty("hash.algorithm");
 
@@ -38,8 +49,14 @@ public class CryptoUtils {
         }
         return fnmessage;
     }
-    private static String getDigestNoSalt(byte[] data, String algorithm) throws NoSuchAlgorithmException {
-        var messageDigest = MessageDigest.getInstance(algorithm);
+
+    private static String getDigestNoSalt(byte[] data, String algorithm)  {
+        MessageDigest messageDigest = null;
+        try {
+            messageDigest = MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
         var digest = messageDigest.digest(data);
 
@@ -47,8 +64,13 @@ public class CryptoUtils {
 
         return base64Encoder.encodeToString(digest);
     }
-    private static String getDigest(byte[] data, byte[] salt, String algorithm) throws NoSuchAlgorithmException {
-        var messageDigest = MessageDigest.getInstance(algorithm);
+    private static String getDigest(byte[] data, byte[] salt, String algorithm)  {
+        MessageDigest messageDigest = null;
+        try {
+            messageDigest = MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
         messageDigest.update(salt);
 
@@ -67,92 +89,241 @@ public class CryptoUtils {
 
         return salt;
     }
-    public static byte[] encrypt(byte[] plainText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     *
+     * @param plainText
+     * @param password
+     * @return
+     */
+    public static byte[] encrypt(byte[] plainText, String password){
         var properties = new Properties();
-        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
-
+        try {
+            properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        } catch (IOException e) {
+            throw new CryptoUtilsExceptions("No resource found",e);
+        }
         hashSalt = getSalt();
         var iv = new IvParameterSpec(hashSalt);
 
-//        properties.setProperty("has.salt2", base64Encoder.encodeToString(salt));
 
         PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), hashSalt, Integer.parseInt(properties.getProperty("hash.iterations")), 256);
-        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        SecretKey pbeKey = null;
+        try {
+            pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        } catch (InvalidKeySpecException e) {
+            throw new CryptoUtilsExceptions("Invalid key",e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
         var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
 
-        var cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent", e);
+        } catch (NoSuchPaddingException e) {
+            throw new CryptoUtilsExceptions("Wrong Padding",e);
+        }
 
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+        try {
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+        } catch (InvalidKeyException e) {
+            throw new CryptoUtilsExceptions("Invalid key",e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CryptoUtilsExceptions(e);
+        }
 
-        return cipher.doFinal(plainText);
+        try {
+            return cipher.doFinal(plainText);
+        } catch (IllegalBlockSizeException e) {
+            throw new CryptoUtilsExceptions("Illegal block",e);
+        } catch (BadPaddingException e) {
+            throw new CryptoUtilsExceptions("Bad Padding",e);
+        }
     }
-    public static byte[] decrypt(byte[] cipherText, String password) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     *
+     * @param cipherText
+     * @param password
+     * @return
+     */
+    public static byte[] decrypt(byte[] cipherText, String password)  {
         var properties = new Properties();
-        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        try {
+            properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        } catch (IOException e) {
+            throw new CryptoUtilsExceptions("No resource found",e);
+
+        }
         var base64Encoder = Base64.getEncoder();
         var iv = new IvParameterSpec(hashSalt);
         PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(),hashSalt, Integer.parseInt(properties.getProperty("hash.iterations")), 256);
-        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        SecretKey pbeKey = null;
+        try {
+            try {
+                pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+            } catch (InvalidKeySpecException e) {
+                throw new CryptoUtilsExceptions("Invalid key" ,e);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
         var secretKey =  new SecretKeySpec(pbeKey.getEncoded(), "AES");
 
-        var cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
+        Cipher cipher = null;
+        try {
+            try {
+                cipher = Cipher.getInstance(properties.getProperty("hash.symmetricAlgorithm"));
+            } catch (NoSuchPaddingException e) {
+                throw new CryptoUtilsExceptions("Wrong Padding",e);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
+        try {
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
+        } catch (InvalidKeyException e) {
+            throw new CryptoUtilsExceptions("Invalid key",e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CryptoUtilsExceptions("Invalid algorithm",e);
+        }
 
-        return cipher.doFinal(cipherText);
+        try {
+            return cipher.doFinal(cipherText);
+        } catch (IllegalBlockSizeException e) {
+            throw new CryptoUtilsExceptions("Illegal block",e);
+        } catch (BadPaddingException e) {
+            throw new CryptoUtilsExceptions("Bad Padding",e);
+        }
     }
-    public static byte[] sign (byte[] message) throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException, UnrecoverableKeyException {
+    /**
+     *
+     * @param message
+     * @return
+     */
+    public static byte[] sign (byte[] message) {
         var properties = new Properties();
-        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
-        var keystore = KeyStore.getInstance("PKCS12");
-        keystore.load(new FileInputStream(properties.getProperty("keystore.name")),
-                properties.getProperty("keystore.password").toCharArray());
-        var privateKey = keystore.getKey(properties.getProperty("keystore.alias"),
-                properties.getProperty("keystore.password").toCharArray());
+        try {
+            properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        } catch (IOException e) {
+            throw new CryptoUtilsExceptions("resource not found",e);
+        }
+        KeyStore keystore = null;
+        try {
+            keystore = KeyStore.getInstance("PKCS12");
+        } catch (KeyStoreException e) {
+            throw new CryptoUtilsExceptions("Type error",e);
+        }
+        try {
+            try {
+                keystore.load(new FileInputStream(properties.getProperty("keystore.name")),
+                        properties.getProperty("keystore.password").toCharArray());
+            } catch (IOException e) {
+                throw new CryptoUtilsExceptions("Resource not found",e);
+            } catch (CertificateException e) {
+                throw new CryptoUtilsExceptions("Invalid certificate",e);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
+        Key privateKey = null;
+        try {
+            try {
+                privateKey = keystore.getKey(properties.getProperty("keystore.alias"),
+                        properties.getProperty("keystore.password").toCharArray());
+            } catch (KeyStoreException e) {
+                throw new CryptoUtilsExceptions("Wrong alias",e);
+            } catch (UnrecoverableKeyException e) {
+                throw new CryptoUtilsExceptions("Wrong password",e);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
-        var signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
-        signer.initSign((PrivateKey) privateKey);
-        signer.update(message);
+        Signature signer = null;
+        try {
+            signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
+        try {
+            signer.initSign((PrivateKey) privateKey);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException("Invalid private key",e);
+        }
+        try {
+            signer.update(message);
+        } catch (SignatureException e) {
+            throw new RuntimeException("Signature couldn't update",e);
+        }
 
-        return signer.sign();
+        try {
+            return signer.sign();
+        } catch (SignatureException e) {
+            throw new RuntimeException("Sign error",e);
+        }
 
     }
-
-    public static boolean verify (byte[]  message, byte[] signature, byte[] certificate) throws CertificateException, NoSuchAlgorithmException, IOException, SignatureException, InvalidKeyException {
+    /**
+     *
+     * @param message
+     * @param signature
+     * @param certificate
+     * @return
+     */
+    public static boolean verify (byte[]  message, byte[] signature, byte[] certificate) {
         var properties = new Properties();
-        properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        try {
+            properties.load(CryptoUtils.class.getResourceAsStream("/cryptoutils.properties"));
+        } catch (IOException e) {
+            throw new CryptoUtilsExceptions("No resource found",e);
+        }
 
-        var signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
+        Signature signer = null;
+        try {
+            signer = Signature.getInstance(properties.getProperty("keystore.algorithm"));
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoUtilsExceptions("Algorithm not existent",e);
+        }
 
-        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+        CertificateFactory certFactory = null;
+        try {
+            certFactory = CertificateFactory.getInstance("X.509");
+        } catch (CertificateException e) {
+            throw new CryptoUtilsExceptions("Wrong certificate factory  type",e);
+        }
         InputStream in = new ByteArrayInputStream(certificate);
-        X509Certificate cert = (X509Certificate)certFactory.generateCertificate(in);
+        X509Certificate cert = null;
+        try {
+            cert = (X509Certificate)certFactory.generateCertificate(in);
+        } catch (CertificateException e) {
+            throw new CryptoUtilsExceptions("cant generate certificate",e);
+        }
         try {
             cert.checkValidity();
         } catch( Exception e) {
             System.out.println(e.getMessage());
         }
         var publicKey = cert.getPublicKey();
-        signer.initVerify(publicKey);
-        signer.update(message);
-
-        return signer.verify(signature);
-    }
-
-    public static void main(String[] args) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, BadPaddingException, InvalidKeyException {
-
-        byte[] myvar = "Any String you want".getBytes();
         try {
-            System.out.println(getHash(myvar));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            signer.initVerify(publicKey);
+        } catch (InvalidKeyException e) {
+            throw new CryptoUtilsExceptions("Invalid key",e);
         }
-        encrypt(myvar,"1234");
+        try {
+            signer.update(message);
+        } catch (SignatureException e) {
+            throw new CryptoUtilsExceptions("Signature is not valid",e);
+        }
 
-
+        try {
+            return signer.verify(signature);
+        } catch (SignatureException e) {
+            throw new CryptoUtilsExceptions("Invalid signer",e);
+        }
     }
 }

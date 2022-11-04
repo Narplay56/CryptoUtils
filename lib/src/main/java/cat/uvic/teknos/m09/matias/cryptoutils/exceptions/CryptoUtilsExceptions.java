@@ -1,4 +1,4 @@
-package cat.uvic.teknos.m09.cryptoutils.cryptoutils.exceptions;
+package cat.uvic.teknos.m09.matias.cryptoutils.exceptions;
 
 public class CryptoUtilsExceptions extends RuntimeException{
     public CryptoUtilsExceptions() {

@@ -1,17 +1,11 @@
-package cat.uvic.teknos.m09.cryptoutils.cryptoutils;
+package cat.uvic.teknos.m09.matias.cryptoutils;
 
-import cat.uvic.teknos.m09.cryptoutils.cryptoutils.exceptions.CryptoUtilsExceptions;
+import cat.uvic.teknos.m09.matias.cryptoutils.exceptions.CryptoUtilsExceptions;
 import org.junit.jupiter.api.Test;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.*;
-import java.security.cert.CertificateException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -71,6 +65,6 @@ class CryptoUtilsTest {
             throw new CryptoUtilsExceptions("File not found", e);
         }
 
-        assertNotNull(CryptoUtils.verify(message,CryptoUtils.sign(message),certificate));
+        assertTrue(CryptoUtils.verify(message,CryptoUtils.sign(message),certificate));
     }
 }

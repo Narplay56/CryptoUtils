@@ -1,15 +1,12 @@
-package cat.uvic.teknos.m09.cryptoutils.cryptoutils;
+package cat.uvic.teknos.m09.matias.cryptoutils;
 
-import cat.uvic.teknos.m09.cryptoutils.cryptoutils.exceptions.CryptoUtilsExceptions;
+import cat.uvic.teknos.m09.matias.cryptoutils.exceptions.CryptoUtilsExceptions;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
